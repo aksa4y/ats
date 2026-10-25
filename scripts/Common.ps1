@@ -118,3 +118,22 @@ function Assert-Compatible($Manifest, [string]$GameHash) {
     if ($Manifest.visual_smoke -isnot [bool]) { throw 'Invalid visual_smoke field.' }
     if ($Manifest.visual_smoke -and $GameHash -notin @($Manifest.game_sha256)) { throw 'No verified smoke backend for this game executable. Wait for a compatible release.' }
 }
+
+function Get-SmokeCompanion([string]$Destination, [string]$Existing) {
+    # Immutable source revision from the repository requested by the user.
+    $expected = '2cd77352ca267c992f7667f76f994b5cc06a3b32f14344cde36e37a9de4b81e2'
+    if ((Test-Path -LiteralPath $Existing) -and (Get-FileHash -LiteralPath $Existing -Algorithm SHA256).Hash -eq $expected) {
+        Copy-Item -LiteralPath $Existing -Destination $Destination
+    } else {
+        $url = 'https://media.githubusercontent.com/media/shortcord/modguard-linux-unoffical/7ae63b632ab56349b5f538b3aa9f3da1d66be3dd/reverse-enginnering/PM_389_Smoke.zip'
+        Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $Destination -TimeoutSec 300
+    }
+    if ((Get-FileHash -LiteralPath $Destination -Algorithm SHA256).Hash -ne $expected) { throw 'Smoke companion SHA-256 mismatch. Installation cancelled.' }
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [IO.Compression.ZipFile]::OpenRead($Destination)
+    try {
+        if (!$zip.GetEntry('unit/hookup/smoke_new.sii')) { throw 'Smoke particle definition missing.' }
+        if (@($zip.Entries | Where-Object { $_.FullName -match '^vehicle/truck/.+\.pmg$' }).Count -eq 0) { throw 'Smoke exhaust models missing.' }
+    } finally { $zip.Dispose() }
+}

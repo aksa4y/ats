@@ -1,7 +1,9 @@
 param(
     [ValidateSet('Run','Update','Diagnose')][string]$Mode = 'Run',
     [string]$GamePath,
-    [switch]$NoLaunch
+    [switch]$NoLaunch,
+    [string]$ProfileDirectory,
+    [switch]$SkipSmokeMod
 )
 . (Join-Path $PSScriptRoot 'Common.ps1')
 $root = Split-Path $PSScriptRoot -Parent
@@ -18,10 +20,10 @@ try {
     $version = (Get-Item -LiteralPath $exe).VersionInfo.ProductVersion
     $plugins = Join-Path $game 'bin\win_x64\plugins'
     $framework = Join-Path $plugins 'spf-framework.dll'
-    $report = [ordered]@{game_path=$game; product_version=$version; game_sha256=$hash; spf_installed=(Test-Path -LiteralPath $framework); visual_smoke=$false; status='Windows particle backend not implemented'; checked_utc=[DateTime]::UtcNow.ToString('o')}
+    $report = [ordered]@{game_path=$game; product_version=$version; game_sha256=$hash; spf_installed=(Test-Path -LiteralPath $framework); profile_matches=($hash -eq 'c60e8ee02cc97b3cc6ef8c6298bb5c3c23c4ffd330b8185b646fb1b608a3c7b4'); runtime_validated=$false; status='Windows particle controller requires in-game validation'; checked_utc=[DateTime]::UtcNow.ToString('o')}
     $report | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $state 'diagnostics.json') -Encoding UTF8
     Write-Host "ATS: $game`nVersion: $version`nSHA256: $hash"
-    Write-Warning 'This is a telemetry preview. It does not control visible smoke.'
+    Write-Warning 'Experimental Windows particle controller: test in game with a backed-up profile.'
     if ($Mode -ne 'Diagnose') {
         Assert-GameStopped
         $release = Get-Release 'aksa4y/ats'
@@ -61,10 +63,28 @@ try {
                 }
             }
         }
+        if (Test-Path -LiteralPath (Join-Path $plugins 'MODGuard.dll')) {
+            throw 'MODGuard.dll is also installed. Disable that smoke controller before using ATSExhaust. Other SPF plugins can remain installed.'
+        }
+        if (!$SkipSmokeMod) {
+            if (!$ProfileDirectory) {
+                $documents = [Environment]::GetFolderPath('MyDocuments')
+                if (!$documents) { throw 'Documents folder unavailable. Specify -ProfileDirectory.' }
+                $ProfileDirectory = Join-Path $documents 'American Truck Simulator'
+            }
+            if (!(Test-Path -LiteralPath $ProfileDirectory -PathType Container)) {
+                throw 'ATS user folder not found. Start ATS once, or specify -ProfileDirectory for a custom -homedir location.'
+            }
+            $companionTarget = Join-Path $ProfileDirectory 'mod\ATSExhaust_Companion.scs'
+            $companionSource = Join-Path $stage 'ATSExhaust_Companion.scs'
+            Get-SmokeCompanion $companionSource $companionTarget
+            $files += [pscustomobject]@{Source=$companionSource; Target=$companionTarget}
+        }
         Ensure-VCRuntime $stage
         Assert-GameStopped
         $backup = Join-Path $state ('backups\' + [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss-ffff'))
         Install-FileSet $files $backup
+        if (!$SkipSmokeMod) { Write-Host 'Enable the companion in ATS Mod Manager (named PM 389 Smoke). It is stored as ATSExhaust_Companion.scs. Disable other copies of the same smoke mod.' }
         Write-Host "Installed release $($release.tag_name). Backup: $backup"
         if ($Mode -eq 'Run' -and !$NoLaunch) {
             Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe)

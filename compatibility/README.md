@@ -1,12 +1,10 @@
-# Windows smoke backend status
+# Windows smoke backend
 
-No Windows particle profile is implemented or verified.
-The diagnostic package declares visual_smoke=false and an empty game_sha256 list.
-Do not populate the list from a version string alone.
+The experimental profile for Windows ATS 1.61.3.18 is implemented.
+See windows-1.61.3.18.md for the executable hash and static evidence.
+The release manifest declares visual_smoke=true and runtime_validated=false.
+The first value means that particle control code exists. It does not claim an in-game test.
 
-A future visual backend requires evidence from the exact Windows game executable.
-The evidence must identify the particle function ABI, object layout, target bytes, and smoke identity checks.
-Each supported executable needs its SHA-256 hash and an in-game smoke test.
-The backend must leave unrelated particle generators unchanged.
-
-The updater only delivers published packages. It cannot discover correct hooks or repair object layouts.
+Each future profile requires binary evidence and an in-game test.
+Never populate game_sha256 from a product-version string alone.
+The updater delivers published packages. It does not discover new object layouts.

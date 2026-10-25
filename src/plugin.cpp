@@ -4,6 +4,8 @@
 #include "SPF_UI_API.h"
 #include "SPF_Logger_API.h"
 #include "exhaust_model.hpp"
+#include "particle_backend.hpp"
+#include <cstdio>
 #include <atomic>
 #include <algorithm>
 #include <cmath>
@@ -17,21 +19,22 @@ modguard::ExhaustModel model;
 std::uint64_t previous = 0;
 std::atomic<float> demand{0.0F};
 std::atomic<bool> ready{false};
-void reset() { model.reset(); previous = 0; demand.store(0.0F); ready.store(false); }
+void reset() { model.reset(); previous = 0; demand.store(0.0F); ready.store(false); ats_exhaust::set_smoke_demand(0.0F); }
 void load(const SPF_Load_API* api) {
     reset();
     if (api && api->logger) {
         auto h = api->logger->Log_GetContext(name);
         if (h) api->logger->Log(h, SPF_LOG_WARN,
-            "ATSExhaust: diagnostic preview. Windows particle backend is NOT implemented; no visual smoke control.");
+            "ATSExhaust 0.2: Windows particle controller for ATS 1.61.3.18. Runtime smoke test required.");
     }
 }
 void activate(const SPF_Core_API* api) {
     core = api;
     telemetry = core && core->telemetry ? core->telemetry->Tel_GetContext(name) : nullptr;
     reset();
+    ats_exhaust::initialize_particles(api);
 }
-void unload() { reset(); telemetry = nullptr; core = nullptr; }
+void unload() { reset(); ats_exhaust::shutdown_particles(); telemetry = nullptr; core = nullptr; }
 void update() {
     if (!core || !core->telemetry || !telemetry) { reset(); return; }
     auto* api = core->telemetry;
@@ -68,12 +71,27 @@ void update() {
         if (!std::isfinite(v)) { reset(); return; }
     }
     demand.store(model.update(input, dt).demand);
+    ats_exhaust::set_smoke_demand(demand.load());
     ready.store(true);
 }
 void draw(SPF_UI_API* ui, void*) {
     if (!ui) return;
-    ui->UI_TextWrapped(u8"ATSExhaust — диагностика выхлопа");
-    ui->UI_TextWrapped(u8"Управление видимым дымом НЕ реализовано. Нужен проверенный Windows-модуль частиц для вашей сборки ATS.");
+    ui->UI_TextWrapped(u8"ATSExhaust — управление дымом");
+    const auto status=ats_exhaust::particle_state();
+    using State=ats_exhaust::BackendState;
+    if (status==State::active) ui->UI_Text(u8"Перехват частиц активен: ATS 1.61.3.18");
+    else if (status==State::unsupported_build) ui->UI_TextWrapped(u8"Другая сборка игры. Перехват отключён. Запустите update.bat.");
+    else if (status==State::bytes_mismatch) ui->UI_TextWrapped(u8"Байты функции изменены или конфликт с другим модом. Перехват отключён.");
+    else if (status==State::disabled) ui->UI_TextWrapped(u8"Перехват выключен в настройках SPF.");
+    else ui->UI_TextWrapped(u8"Перехват ещё не активен. Проверьте журнал SPF.");
+    const auto stats=ats_exhaust::particle_stats();
+    char line[240];
+    std::snprintf(line,sizeof(line),u8"Частицы дыма: %llu | Пропущено: %llu | Подавлено: %llu",
+        static_cast<unsigned long long>(stats.matched),static_cast<unsigned long long>(stats.admitted),
+        static_cast<unsigned long long>(stats.suppressed));
+    ui->UI_Text(line);
+    if (!stats.matched) ui->UI_TextWrapped(u8"Дым пока не обнаружен. Включите PM 389 Smoke в менеджере модов и выберите совместимый выхлоп.");
+    ui->UI_TextWrapped(u8"Экспериментальная версия: работа в игре ещё не подтверждена.");
     ui->UI_Text(ready.load() ? u8"Телеметрия поступает" : u8"Ожидание поездки в ATS");
     ui->UI_ProgressBar(demand.load(), -1.0F, 20.0F, u8"Расчётная интенсивность");
     ui->UI_TextWrapped(u8"update.bat получает опубликованные обновления. Он не создаёт поддержку неизвестной версии игры.");
@@ -84,13 +102,13 @@ void register_ui(SPF_UI_API* ui) {
 void manifest(SPF_Manifest_Builder_Handle* h, const SPF_Manifest_Builder_API* api) {
     if (!h || !api) return;
     api->Info_SetName(h, name);
-    api->Info_SetVersion(h, "0.1.0");
+    api->Info_SetVersion(h, "0.2.0");
     api->Info_SetMinFrameworkVersion(h, "1.2.6");
     api->Info_SetAuthor(h, "aksa4y");
     api->Info_SetGithubUrl(h, "https://github.com/aksa4y/ats");
-    api->Info_SetDescriptionLiteral(h, "Exhaust telemetry preview. Visual smoke backend unavailable.");
+    api->Info_SetDescriptionLiteral(h, "Windows exhaust particle control for ATS 1.61.3.18; experimental.");
     api->Defaults_SetLogging(h, "info", true);
-    api->Defaults_AddWindow(h, "Status", true, true, 80, 80, 540, 240, false, false);
+    api->Defaults_AddWindow(h, "Status", true, true, 80, 80, 620, 360, false, false);
 }
 }
 extern "C" SPF_PLUGIN_EXPORT bool SPF_GetManifestAPI(SPF_Manifest_API* api) {

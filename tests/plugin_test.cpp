@@ -22,7 +22,7 @@ void get_constants(SPF_Telemetry_Handle*, SPF_TruckConstants* out, size_t) { out
 void get_job(SPF_Telemetry_Handle*, SPF_JobConstants*, size_t) {}
 void get_job_data(SPF_Telemetry_Handle*, SPF_JobData*, size_t) {}
 void register_draw(const char*, const char*, SPF_DrawCallback cb, void*) { draw = cb; }
-void text(const char* message) { if (std::strstr(message, u8"НЕ реализовано")) disclaimer = true; }
+void text(const char* message) { if (std::strstr(message, u8"ещё не подтверждена")) disclaimer = true; }
 void bar(float f, float, float, const char*) { progress = f; }
 }
 int main() {

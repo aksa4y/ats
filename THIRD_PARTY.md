@@ -12,7 +12,9 @@ No blanket open-source license applies to this repository.
 The upstream SCS SDK license applies only to its SDK definitions, not to the exhaust model.
 
 The original MODGuard.dll, smoke archives, textures, and truck meshes are not included.
-The installer does not download those proprietary assets.
+The installer downloads the unchanged companion archive from that upstream revision.
+The archive remains subject to its original rights. It is not published in our release assets.
+Pinned companion SHA-256: 2cd77352ca267c992f7667f76f994b5cc06a3b32f14344cde36e37a9de4b81e2.
 
 ## SPF Framework API headers
 

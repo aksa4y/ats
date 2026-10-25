@@ -1,4 +1,4 @@
-name: Build and release Windows preview
+name: Build and release Windows particle controller
 on:
   push:
     branches: [main]
@@ -30,7 +30,7 @@ jobs:
       - name: Package Windows DLL
         if: runner.os == 'Windows'
         shell: pwsh
-        run: ./scripts/Package.ps1 -Dll build/Release/ATSExhaust.dll -Version '0.1.${{ github.run_number }}'
+        run: ./scripts/Package.ps1 -Dll build/Release/ATSExhaust.dll -Version '0.2.${{ github.run_number }}'
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Windows'
         with:
@@ -48,12 +48,12 @@ jobs:
         with:
           name: windows-package
           path: dist
-      - name: Publish tested diagnostic preview
+      - name: Publish tested experimental smoke controller
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          gh release create "v0.1.${{ github.run_number }}"
+          gh release create "v0.2.${{ github.run_number }}"
           dist/ATSExhaust-windows-x64.zip
           --target "${{ github.sha }}"
-          --title "ATSExhaust diagnostic preview 0.1.${{ github.run_number }}"
+          --title "ATSExhaust experimental smoke controller 0.2.${{ github.run_number }}"
           --notes-file RELEASE_NOTES.md

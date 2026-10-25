@@ -22,6 +22,6 @@ try {
     if ($LASTEXITCODE) { throw 'C++ tests failed.' }
     & (Join-Path $root 'tests\installer_test.ps1')
     & (Join-Path $PSScriptRoot 'Package.ps1') -Dll (Join-Path $root 'build\Release\ATSExhaust.dll') -OutputDirectory (Join-Path $root 'dist')
-    Write-Host 'Built dist\ATSExhaust-windows-x64.zip. This is a diagnostic preview without visual smoke control.'
+    Write-Host 'Built dist\ATSExhaust-windows-x64.zip. Experimental smoke controller for the pinned ATS 1.61.3.18 build.'
     exit 0
 } catch { Write-Host $_ -ForegroundColor Red; exit 1 }
