@@ -1,0 +1,59 @@
+name: Build and release Windows preview
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Installer tests (PowerShell 7)
+        shell: pwsh
+        run: ./tests/installer_test.ps1
+      - name: Installer tests (Windows PowerShell 5.1)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./tests/installer_test.ps1
+      - name: Package Windows DLL
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/Package.ps1 -Dll build/Release/ATSExhaust.dll -Version '0.1.${{ github.run_number }}'
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: windows-package
+          path: dist/ATSExhaust-windows-x64.zip
+  release:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-package
+          path: dist
+      - name: Publish tested diagnostic preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "v0.1.${{ github.run_number }}"
+          dist/ATSExhaust-windows-x64.zip
+          --target "${{ github.sha }}"
+          --title "ATSExhaust diagnostic preview 0.1.${{ github.run_number }}"
+          --notes-file RELEASE_NOTES.md
