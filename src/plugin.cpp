@@ -102,7 +102,7 @@ void register_ui(SPF_UI_API* ui) {
 void manifest(SPF_Manifest_Builder_Handle* h, const SPF_Manifest_Builder_API* api) {
     if (!h || !api) return;
     api->Info_SetName(h, name);
-    api->Info_SetVersion(h, "0.2.0");
+    api->Info_SetVersion(h, "0.2.3");
     api->Info_SetMinFrameworkVersion(h, "1.2.6");
     api->Info_SetAuthor(h, "aksa4y");
     api->Info_SetGithubUrl(h, "https://github.com/aksa4y/ats");
