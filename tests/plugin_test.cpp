@@ -49,7 +49,7 @@ int main() {
     exports.OnActivated(&core);
     exports.OnRegisterUI(&ui);
     assert(draw);
-    std::strcpy(game.game_id, "ats");
+    std::memcpy(game.game_id, "ats", 4);
     truck.engine_enabled = true; truck.engine_rpm = 1500;
     truck.effective_throttle = 1; truck.displayed_gear = 5;
     for (int i=0; i<180; ++i) { time.paused_simulation += 16667; exports.OnUpdate(); }

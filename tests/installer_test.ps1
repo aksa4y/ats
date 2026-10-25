@@ -34,10 +34,19 @@ try {
     Install-FileSet @($files[0]) (Join-Path $temp 'backup2')
     Check ((Get-Content $target) -eq 'new') 'Install failed'
     $archive = Join-Path $temp 'evil.zip'
+    Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zip = [IO.Compression.ZipFile]::Open($archive, [IO.Compression.ZipArchiveMode]::Create)
     $null = $zip.CreateEntry('../escape.txt'); $zip.Dispose()
     MustFail { Expand-SafeZip $archive (Join-Path $temp 'extract') }
     Check (!(Test-Path (Join-Path $temp 'escape.txt'))) 'ZIP escaped destination'
-    Write-Host 'Installer tests passed.'
+    $valid = Join-Path $temp 'valid.zip'
+    $zip = [IO.Compression.ZipFile]::Open($valid, [IO.Compression.ZipArchiveMode]::Create)
+    $entry = $zip.CreateEntry('nested/data.txt')
+    $writer = [IO.StreamWriter]::new($entry.Open())
+    $writer.Write('verified'); $writer.Dispose(); $zip.Dispose()
+    $destination = Join-Path $temp 'valid-output'
+    Expand-SafeZip $valid $destination
+    Check ((Get-Content (Join-Path $destination 'nested/data.txt')) -eq 'verified') 'Valid ZIP extraction failed'
+    Write-Host 'Installer tests passed.' 
 } finally { Remove-Item -LiteralPath $temp -Recurse -Force }

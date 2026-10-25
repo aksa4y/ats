@@ -59,6 +59,7 @@ function Get-VerifiedAsset($Asset, [string]$Destination) {
     if ((Get-FileHash -LiteralPath $Destination -Algorithm SHA256).Hash -ne $expected) { throw 'SHA-256 mismatch. Download refused.' }
 }
 function Expand-SafeZip([string]$Archive, [string]$Destination) {
+    Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $root = [IO.Path]::GetFullPath($Destination).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
     [IO.Directory]::CreateDirectory($root) | Out-Null
